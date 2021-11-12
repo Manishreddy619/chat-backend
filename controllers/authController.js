@@ -1,56 +1,52 @@
-const User = require('../models').User
-const bcrypt = require('bcrypt')
-const jwt = require('jsonwebtoken')
-const config = require('../config/app')
+const User = require('../models').User;
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 exports.login = async (req, res) => {
-    const { email, password } = req.body
+	const { email, password } = req.body;
 
-    try {
+	try {
+		// const secret = require('crypto').randomBytes(64).toString('hex')
 
-        // const secret = require('crypto').randomBytes(64).toString('hex')
+		// find the user
+		const user = await User.findOne({
+			where: {
+				email,
+			},
+		});
 
-        // find the user
-        const user = await User.findOne({
-            where: {
-                email
-            }
-        })
+		// check if user found
+		if (!user) return res.status(404).json({ message: 'User not found!' });
 
-        // check if user found
-        if (!user) return res.status(404).json({ message: 'User not found!' })
+		// check if password matches
+		if (!bcrypt.compareSync(password, user.password))
+			return res.status(401).json({ message: 'Incorrect password!' });
 
-        // check if password matches
-        if (!bcrypt.compareSync(password, user.password)) return res.status(401).json({ message: 'Incorrect password!' })
+		// generate auth token
+		const userWithToken = generateToken(user.get({ raw: true }));
+		userWithToken.user.avatar = user.avatar;
 
-        // generate auth token
-        const userWithToken = generateToken(user.get({ raw: true }))
-        userWithToken.user.avatar = user.avatar
-
-        return res.send(userWithToken)
-
-    } catch (e) {
-        return res.status(500).json({ message: e.message })
-    }
-}
+		return res.send(userWithToken);
+	} catch (e) {
+		return res.status(500).json({ message: e.message });
+	}
+};
 
 exports.register = async (req, res) => {
+	try {
+		const user = await User.create(req.body);
 
-    try {
-        const user = await User.create(req.body)
-
-        const userWithToken = generateToken(user.get({ raw: true }))
-        return res.send(userWithToken)
-    } catch (e) {
-        return res.status(500).json({ message: e.message })
-    }
-}
+		const userWithToken = generateToken(user.get({ raw: true }));
+		return res.send(userWithToken);
+	} catch (e) {
+		return res.status(500).json({ message: e.message });
+	}
+};
 
 const generateToken = (user) => {
+	delete user.password;
 
-    delete user.password
+	const token = jwt.sign(user, process.env.APP_KEY, { expiresIn: 86400 });
 
-    const token = jwt.sign(user, config.appKey, { expiresIn: 86400 })
-
-    return { ...{ user }, ...{ token } }
-}
+	return { ...{ user }, ...{ token } };
+};
