@@ -13,7 +13,7 @@ app.use(router);
 app.use(express.static(__dirname + '/public'));
 app.use(express.static(__dirname + '/uploads'));
 
-const port = config.appPort;
+const port = config.PORT || 3001;
 
 const server = http.createServer(app);
 const SocketServer = require('./socket');
